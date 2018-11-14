@@ -1,0 +1,71 @@
+doctype html
+html
+  head
+    title= title
+    link(rel='stylesheet', href='/stylesheets/style.css')
+    script(src='https://api.mapbox.com/mapbox.js/v3.1.1/mapbox.js')
+    script(src='https://api.mapbox.com/mapbox.js/plugins/leaflet-markercluster/v1.0.0/leaflet.markercluster.js')
+    link(href='https://api.mapbox.com/mapbox.js/v3.1.1/mapbox.css', rel='stylesheet')
+    link(href='https://api.mapbox.com/mapbox.js/plugins/leaflet-markercluster/v1.0.0/MarkerCluster.css', rel='stylesheet')
+    link(href='https://api.mapbox.com/mapbox.js/plugins/leaflet-markercluster/v1.0.0/MarkerCluster.Default.css', rel='stylesheet')
+    style.
+      body { margin:0; padding:0; }
+      #map { position:absolute; top:0; bottom:0; left:0; width:70%;}
+      #menu { position:absolute; top:0; bottom:0; right:0; width:30%}
+    script(type='text/javascript').
+      vratData = function (url) {
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+          if (xhttp.readyState == 4 && xhttp.status == 200) {
+            var jsonData = JSON.parse(xhttp.responseText);
+            console.dir(jsonData);
+
+            
+            if(typeof myLayer !== 'undefined') map.removeLayer(myLayer);
+            if(typeof clusterGroup !== 'undefined') map.removeLayer(clusterGroup);
+            myLayer = L.mapbox.featureLayer().setGeoJSON(jsonData);
+            clusterGroup = new L.MarkerClusterGroup();
+            myLayer.eachLayer(function(layer) {
+              clusterGroup.addLayer(layer);
+            });
+          map.addLayer(clusterGroup);
+          }
+        };
+        xhttp.open("GET", url, true);
+        xhttp.send();
+      };
+      
+      selectData = function () {
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+          if (xhttp.readyState == 4 && xhttp.status == 200) {
+            var jsonData = JSON.parse(xhttp.responseText);
+            console.dir(jsonData);
+            var sel = document.getElementById('closePharmacy');
+            for (row in jsonData){
+                console.log(jsonData[row]);
+                var opt = document.createElement('option');
+                opt.value = jsonData[row].osm_id;
+                opt.innerHTML = jsonData[row].name;
+                sel.appendChild(opt);
+            }
+          }
+        };
+        xhttp.open("GET", '/selectCounties', true);
+        xhttp.send();
+      };
+      
+      nearPharmacy = function() {
+          var sel = document.getElementById('closePharmacy').value;
+          var num = document.getElementById('numberPharmacy').value;
+          
+          console.log(sel);
+          console.log(num);
+          
+          vratData('/nearPharmacy?id='+sel+'&num='+num);
+      }
+      
+      selectData();
+
+  body
+    block content

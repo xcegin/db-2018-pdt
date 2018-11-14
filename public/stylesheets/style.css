@@ -1,0 +1,71 @@
+body {
+  padding: 50px;
+  font: 14px Impact, Charcoal, sans-serif;
+}
+
+
+a {
+  color: #00B7FF;
+}
+
+#nadpis {
+  color: yellowgreen;
+  text-align: center;
+  text-transform: uppercase;
+  font-size: 26px;
+}
+
+button, select, input {
+  color: green;
+  background-color: white;
+  border: 1px solid yellowgreen;
+  font: 20px Impact, Charcoal, sans-serif;
+  width: 90%;
+  position: relative;
+  vertical-align: center;
+  padding: 5px;
+  margin: 5%;
+  margin-top:2%;
+  }
+  
+button:hover {
+  background-color: #001a00;
+  border: 1px solid yellowgreen;
+  color: yellowgreen;
+}
+
+fieldset {
+  color: yellowgreen;
+  border: 1px solid yellowgreen;
+  margin: 5%;
+}
+
+select, input {
+  font-family: sans-serif;
+  font-size: 15px;
+  margin-top: 1%;
+  margin-bottom: 1%;
+}
+
+input {
+  width: 40%;
+  float: left;
+  display: inline-block;
+  margin-right: 1%;
+}
+
+.vriadku {
+  font-size: 15px;
+  display: inline-block;
+  float: right;
+  width: 40%;
+  margin-left: 1%;
+  margin-top: 1%;
+  margin-bottom: 1%;
+
+}
+
+#menu {
+  background-color: #001a00;
+  color: white;
+}
