@@ -4,19 +4,25 @@ block content
   #map
     script.
       L.mapbox.accessToken = 'pk.eyJ1IjoiZXZhaG5pOCIsImEiOiJjaWZ6OHgwbG4wMmc1dG1tN3h4YnpxajlqIn0.ay9PDyLuYmcX1vIUE8QEwg';
-      var map = L.mapbox.map('map').setView([48.1567,17.1189], 14).addLayer(L.mapbox.tileLayer('mapbox.light'));
+      var map = L.mapbox.map('map').setView([48.653,19.891], 8).addLayer(L.mapbox.tileLayer('mapbox.light'));
 
   #menu
     p#nadpis Slovak Castles
     button(type='button', onclick='vratData("/castles")') all castles as points
-    button(type='button', onclick='vratData("/castles-poly")') castles with their objects (if present)
+    button(type='button', onclick='vratData("/castles-poly")') castles as objects (if present)
     button(type='button', onclick='vratData("/hospitals")') všetky zariadenia
     button(type='button', onclick='vratData("/allHealthCare")') všetko naraz
     button(type='button', onclick='vratData("/pharmacyInHospital")') lekárne vo vnútri nemocníc
     fieldset
-      legend Zobraziť hrady v krajoch
+      legend Select castles near cities in km
+      select#closeTowns.vriadku
       .div  
-        button.vriadku(type='button', onclick='nearPharmacy()') zobraz
-        select#closePharmacy.vriadku
+        input#numberKms(type='number', name='limit', min='0', max='300', value='1')
+        button.vriadku(type='button', onclick='closeTowns()') Show
+    fieldset
+      legend Selects castles and parking lots within given meters
+      .div  
+        input#closeParking(type='number', name='limit', min='0', max='3000', value='5')
+        button.vriadku(type='button', onclick='closeParking()') Show
 
   #target

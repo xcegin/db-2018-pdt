@@ -41,7 +41,7 @@ html
           if (xhttp.readyState == 4 && xhttp.status == 200) {
             var jsonData = JSON.parse(xhttp.responseText);
             console.dir(jsonData);
-            var sel = document.getElementById('closePharmacy');
+            var sel = document.getElementById('closeTowns');
             for (row in jsonData){
                 console.log(jsonData[row]);
                 var opt = document.createElement('option');
@@ -51,7 +51,7 @@ html
             }
           }
         };
-        xhttp.open("GET", '/selectCounties', true);
+        xhttp.open("GET", '/selectBigCities', true);
         xhttp.send();
       };
       
@@ -63,6 +63,25 @@ html
           console.log(num);
           
           vratData('/nearPharmacy?id='+sel+'&num='+num);
+      }
+
+      closeParking = function() {
+          var num = document.getElementById('closeParking').value;
+          
+          console.log(num);
+          
+          vratData('/closeParking?num='+num);
+      }
+
+      
+      closeTowns = function() {
+          var sel = document.getElementById('closeTowns').value;
+          var num = document.getElementById('numberKms').value;
+          
+          console.log(sel);
+          console.log(num);
+          
+          vratData('/closeTowns?id='+sel+'&num='+num);
       }
       
       selectData();
