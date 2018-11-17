@@ -1,18 +1,58 @@
 extends layout
 
 block content
+  #legend
+    .my-legend
+      .legend-title: Explanation  Points of interests
+      .legend-scale
+        ul.legend-labels
+          li
+            span(style={background: '#00FF7F'})
+            PoI Museum
+          li
+            span(style={background: '#005129'})
+            PoI Tower
+          li
+            span(style={background: '#e3ff01'})
+            PoI Sports centre
+          li
+            span(style={background: '#9ACD32'})
+            PoI Castle
+          li
+            span(style={background: '#156bcc'})
+            PoI Restaurant
+          li
+            span(style={background: '#9010ff'})
+            PoI Embassy
+          li
+            span(style={background: '#ff9410'})
+            PoI Bank
+          li
+            span(style={background: '#ff1010'})
+            PoI Hotel
+          li
+            span(style={background: '#3e2d31'})
+            PoI Shop
+          li
+            span(style={background: '#635400'})
+            PoI Religion building
+          li
+            span(style={background: '#6d6d66'})
+            PoI Other
+
   #map
     script.
       L.mapbox.accessToken = 'pk.eyJ1IjoiZXZhaG5pOCIsImEiOiJjaWZ6OHgwbG4wMmc1dG1tN3h4YnpxajlqIn0.ay9PDyLuYmcX1vIUE8QEwg';
       var map = L.mapbox.map('map').setView([48.653,19.891], 8).addLayer(L.mapbox.tileLayer('mapbox.light'));
+      map.addControl(L.mapbox.geocoderControl('mapbox.places', {
+        autocomplete: true
+      }));
+      map.legendControl.addLegend(document.getElementById('legend').innerHTML);
 
   #menu
     p#nadpis Slovak Castles
-    button(type='button', onclick='vratData("/castles")') all castles as points
-    button(type='button', onclick='vratData("/castles-poly")') castles as objects (if present)
-    button(type='button', onclick='vratData("/hospitals")') všetky zariadenia
-    button(type='button', onclick='vratData("/allHealthCare")') všetko naraz
-    button(type='button', onclick='vratData("/pharmacyInHospital")') lekárne vo vnútri nemocníc
+    button(type='button', onclick='vratData("/castles", true)') all castles as points
+    button(type='button', onclick='vratData("/castles-poly", true)') castles as objects (if present)
     fieldset
       legend Select castles near cities in km
       select#closeTowns.vriadku
@@ -24,5 +64,10 @@ block content
       .div  
         input#closeParking(type='number', name='limit', min='0', max='3000', value='5')
         button.vriadku(type='button', onclick='closeParking()') Show
+    fieldset
+      legend Show objects of interests from castle on click in meters
+      .div  
+        input#closeInterests(type='number', name='limit', min='0', max='3000', value='5')
+
 
   #target

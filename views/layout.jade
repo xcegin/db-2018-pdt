@@ -13,22 +13,34 @@ html
       #map { position:absolute; top:0; bottom:0; left:0; width:70%;}
       #menu { position:absolute; top:0; bottom:0; right:0; width:30%}
     script(type='text/javascript').
-      vratData = function (url) {
+      vratData = function (url, clean) {
         var xhttp = new XMLHttpRequest();
         xhttp.onreadystatechange = function() {
           if (xhttp.readyState == 4 && xhttp.status == 200) {
             var jsonData = JSON.parse(xhttp.responseText);
             console.dir(jsonData);
 
-            
-            if(typeof myLayer !== 'undefined') map.removeLayer(myLayer);
-            if(typeof clusterGroup !== 'undefined') map.removeLayer(clusterGroup);
-            myLayer = L.mapbox.featureLayer().setGeoJSON(jsonData);
-            clusterGroup = new L.MarkerClusterGroup();
-            myLayer.eachLayer(function(layer) {
-              clusterGroup.addLayer(layer);
-            });
-          map.addLayer(clusterGroup);
+            if(typeof detailLayer !== 'undefined') map.removeLayer(detailLayer);
+            if(typeof myLayer !== 'undefined' && clean) map.removeLayer(myLayer);
+            if(typeof clusterGroup !== 'undefined' && clean) map.removeLayer(clusterGroup);
+            if (!clean) {detailLayer = L.mapbox.featureLayer().setGeoJSON(jsonData);}
+            else {myLayer = L.mapbox.featureLayer().setGeoJSON(jsonData);
+            clusterGroup = new L.MarkerClusterGroup();}
+            if (clean) {
+              myLayer.eachLayer(function(layer) {
+                clusterGroup.addLayer(layer);
+              });
+              clusterGroup.on('click', function (a) {
+                console.log(a.layer.feature);
+                if (a.layer.feature.geometry.type == "Point"){ 
+                  closeInterests(a.layer.feature.osm_id);
+                }
+              });
+
+              map.addLayer(clusterGroup);
+              } else {
+              map.addLayer(detailLayer);
+              }
           }
         };
         xhttp.open("GET", url, true);
@@ -54,23 +66,22 @@ html
         xhttp.open("GET", '/selectBigCities', true);
         xhttp.send();
       };
-      
-      nearPharmacy = function() {
-          var sel = document.getElementById('closePharmacy').value;
-          var num = document.getElementById('numberPharmacy').value;
-          
-          console.log(sel);
-          console.log(num);
-          
-          vratData('/nearPharmacy?id='+sel+'&num='+num);
-      }
 
       closeParking = function() {
           var num = document.getElementById('closeParking').value;
           
           console.log(num);
           
-          vratData('/closeParking?num='+num);
+          vratData('/closeParking?num='+num, true);
+      }
+
+      closeInterests = function(sel) {
+          var num = document.getElementById('closeInterests').value;
+          
+          console.log(sel);
+          console.log(num);
+          
+          vratData('/closeInterests?id='+sel+'&num='+num, false);
       }
 
       
@@ -81,7 +92,7 @@ html
           console.log(sel);
           console.log(num);
           
-          vratData('/closeTowns?id='+sel+'&num='+num);
+          vratData('/closeTowns?id='+sel+'&num='+num, true);
       }
       
       selectData();
