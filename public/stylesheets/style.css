@@ -5,20 +5,20 @@ body {
 
 
 a {
-  color: #00B7FF;
+  color: #00CBFF;
 }
 
 #nadpis {
-  color: yellowgreen;
+  color: lightblue;
   text-align: center;
   text-transform: uppercase;
   font-size: 26px;
 }
 
 button, select, input {
-  color: green;
+  color: #00CBFF;
   background-color: white;
-  border: 1px solid yellowgreen;
+  border: 1px solid lightblue;
   font: 20px Impact, Charcoal, sans-serif;
   width: 90%;
   position: relative;
@@ -29,14 +29,14 @@ button, select, input {
   }
   
 button:hover {
-  background-color: #001a00;
-  border: 1px solid yellowgreen;
-  color: yellowgreen;
+  background-color: #222222;
+  border: 1px solid lightblue;
+  color: lightblue;
 }
 
 fieldset {
-  color: yellowgreen;
-  border: 1px solid yellowgreen;
+  color: #00CBFF;
+  border: 1px solid lightblue;
   margin: 5%;
 }
 
@@ -66,7 +66,7 @@ input {
 }
 
 #menu {
-  background-color: #001a00;
+  background-color: #222222;
   color: white;
 }
 

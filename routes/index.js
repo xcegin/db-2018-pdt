@@ -19,7 +19,13 @@ router.get('/castles', function(req, res, next) {
     }
 
     /*vsetky hrady ako body*/
-    client.query("SELECT osm_id,historic,name,ST_AsGeoJSON(ST_Transform(way,4326)) AS geometry FROM planet_osm_point WHERE historic in ('castle') and name is not null UNION SELECT osm_id,historic,name,ST_AsGeoJSON(ST_Transform(ST_Centroid(way),4326)) AS geometry FROM planet_osm_polygon WHERE historic in ('castle') and name is not null", function(err, result) {
+    client.query(`with castle_points as (SELECT osm_id,historic,name,way AS geometry FROM planet_osm_point 
+      WHERE historic in ('castle') and name is not null 
+      UNION 
+      SELECT osm_id,historic,name,ST_Centroid(way) AS geometry FROM planet_osm_polygon 
+      WHERE historic in ('castle') and name is not null), multipoints as(
+      Select name, ST_Collect(points.geometry) as geometry FROM castle_points as points GROUP BY name)
+      select DISTINCT ON (gp.name) gp.name, gp.osm_id, gp.historic, ST_AsGeoJSON(ST_Transform(ST_Centroid(points.geometry),4326)) AS geometry from castle_points as gp JOIN multipoints points ON gp.name = points.name`, function(err, result) {
 
     if(err) {
       return console.error('error running query', err);
@@ -53,8 +59,18 @@ router.get('/castles-poly', function(req, res, next) {
       return console.error('could not connect to postgres', err);
     }
 
-    /*vsetky hrady ako polygony a body - iba ak su aj aj*/
-    client.query("SELECT osm_id,historic,name,ST_AsGeoJSON(ST_Transform(way,4326)) AS geometry FROM planet_osm_polygon WHERE historic in ('castle') and name is not null UNION SELECT osm_id,historic,name,ST_AsGeoJSON(ST_Transform(ST_Centroid(way),4326)) AS geometry FROM planet_osm_polygon WHERE historic in ('castle') and name is not null", function(err, result) {
+    /*vsetky hrady ako polygony a body - sfarbene podla area size*/
+    client.query(`with castle_areas as( SELECT osm_id,historic,name,way AS geometry, ST_Area(way)*POWER(0.3048,2) as area  FROM planet_osm_polygon 
+    WHERE historic in ('castle') and name is not null),
+    total_areas as(select name,  SUM(area) AS totalarea from castle_areas GROUP BY name),
+    grouped_areas as(
+    select distinct on (cas.name) cas.name, cas.geometry, areas.historic, areas.osm_id FROM
+    (select name, (ST_Union(f.geometry)) as geometry FROM castle_areas As f  Where f.name not like '%aštieľ' GROUP BY f.name) cas JOIN castle_areas areas ON areas.name = cas.name),
+    joined_polys as (
+    select gp.name, gp.geometry AS geometry, gp.osm_id, gp.historic ,areas.totalarea from grouped_areas as gp JOIN total_areas areas ON gp.name = areas.name)
+    Select * from (select osm_id, name, historic, ST_AsGeoJSON(ST_Transform(geometry,4326)) as geometry, round(totalarea::numeric, 2) as totalarea  from joined_polys
+    UNION
+    select osm_id, name, historic, ST_AsGeoJSON(ST_Transform(ST_Centroid(geometry),4326)) as geometry, round(totalarea::numeric, 2) as totalarea from joined_polys) as final_result ORDER BY final_result.totalarea DESC`, function(err, result) {
 
     if(err) {
       return console.error('error running query', err);
@@ -65,9 +81,25 @@ router.get('/castles-poly', function(req, res, next) {
       try {
         row.geometry = JSON.parse(row.geometry);
         row.type = "Feature";
-        if(row.historic == "castle"){
-            row.properties = {"title": row.name, "marker-symbol": "monument", "marker-size": "large", "marker-color": "#9ACD32", "stroke": "#9ACD32", "fill": "#9ACD32"}
-        } 
+        if (row.totalarea > 2000) {
+          row.properties = {"title": row.name, "description": "Area: " + row.totalarea, "marker-symbol": "monument", "marker-size": "large", "marker-color": "#663300", "stroke": "#663300", "fill": "#663300"}
+        } else if (row.totalarea > 1500) {
+          row.properties = {"title": row.name, "description": "Area: " + row.totalarea, "marker-symbol": "monument", "marker-size": "large", "marker-color": "#996633", "stroke": "#996633", "fill": "#996633"}
+        } else if (row.totalarea > 1000) {
+          row.properties = {"title": row.name, "description": "Area: " + row.totalarea, "marker-symbol": "monument", "marker-size": "large", "marker-color": "#cc9900", "stroke": "#cc9900", "fill": "#cc9900"}
+        } else if (row.totalarea > 500) {
+          row.properties = {"title": row.name, "description": "Area: " + row.totalarea, "marker-symbol": "monument", "marker-size": "large", "marker-color": "#cccc00", "stroke": "#cccc00", "fill": "#cccc00"}
+        } else if (row.totalarea > 300) {
+          row.properties = {"title": row.name, "description": "Area: " + row.totalarea, "marker-symbol": "monument", "marker-size": "large", "marker-color": "#ffff00", "stroke": "#ffff00", "fill": "#ffff00"}
+        } else if (row.totalarea > 150) {
+          row.properties = {"title": row.name, "description": "Area: " + row.totalarea, "marker-symbol": "monument", "marker-size": "large", "marker-color": "#ccff33", "stroke": "#ccff33", "fill": "#ccff33"}
+        } else if (row.totalarea > 100) {
+          row.properties = {"title": row.name, "description": "Area: " + row.totalarea, "marker-symbol": "monument", "marker-size": "large", "marker-color": "#ccff66", "stroke": "#ccff66", "fill": "#ccff66"}
+        } else if (row.totalarea > 50) {
+          row.properties = {"title": row.name, "description": "Area: " + row.totalarea, "marker-symbol": "monument", "marker-size": "large", "marker-color": "#66ff33", "stroke": "#66ff33", "fill": "#66ff33"}
+        } else {
+          row.properties = {"title": row.name, "description": "Area: " + row.totalarea, "marker-symbol": "monument", "marker-size": "large", "marker-color": "#009900", "stroke": "#009900", "fill": "#009900"}
+        }
       } catch (e) {
         row.geometry = null;
       }
@@ -87,7 +119,6 @@ router.get('/closeParking', function(req, res, next) {
     if(err) {
       return console.error('could not connect to postgres', err);
     }
-    /**TODO: dodat distinct on na name */
     /*hrady a parkoviska do danych metrov*/
     client.query({text:`SELECT  pol.osm_id, pol.name, ST_AsGeoJSON(ST_Transform(pol.way,4326)) AS geometry, pol.type as type
     FROM (SELECT osm_id,amenity as name,way, amenity as type
@@ -144,7 +175,7 @@ router.get('/closeTowns', function(req, res, next) {
       FROM planet_osm_point WHERE historic in ('castle') and name is not null 
       UNION SELECT osm_id,name,ST_Centroid(way) AS way, historic
       FROM planet_osm_polygon WHERE historic in ('castle') and name is not null) as data
-      where ST_DWithin(data.way, (Select way from planet_osm_point points where osm_id=$1), $2)`, values:[req.query.id, req.query.num*1000]}, function(err, result) {
+      where ST_Distance(data.way, (Select way from planet_osm_point points where osm_id=$1)) < $2`, values:[req.query.id, req.query.num*1000]}, function(err, result) {
 
     if(err) {
       return console.error('error running query', err);
@@ -178,13 +209,14 @@ router.get('/closeInterests', function(req, res, next) {
     }
 
     /*on click hradu zobrazenie vsetkych hovadin v jeho blizkosti ako polygonov*/
-    client.query({text:`with castle_points as (
-      SELECT DISTINCT ON(way) osm_id,historic,name,way FROM planet_osm_point 
-        WHERE historic in ('castle') and name is not null 
-        UNION SELECT DISTINCT ON(way) osm_id,historic,name,ST_Centroid(way) AS way FROM planet_osm_polygon
-        WHERE historic in ('castle') and name is not null
-      )
-      select osm_id, name, ST_AsGeoJSON(ST_Transform(way,4326)) AS geometry, historic, amenity, tourism, man_made, leisure, shop from planet_osm_polygon as pol where name is not null and building in ('yes') and ST_DWithin(pol.way, (select way from castle_points where osm_id=$1), $2);`, values:[req.query.id, req.query.num]}, function(err, result) {
+    client.query({text:`with castle_points as (SELECT osm_id,historic,name,way AS geometry FROM planet_osm_point 
+      WHERE historic in ('castle') and name is not null 
+      UNION 
+      SELECT osm_id,historic,name,ST_Centroid(way) AS geometry FROM planet_osm_polygon 
+      WHERE historic in ('castle') and name is not null), multipoints as(
+      Select name, ST_Collect(points.geometry) as geometry FROM castle_points as points GROUP BY name), finalpoints as (
+      select DISTINCT ON (gp.name) gp.name, gp.osm_id, gp.historic, ST_Centroid(points.geometry) AS geometry from castle_points as gp JOIN multipoints points ON gp.name = points.name)  
+      select osm_id, name, ST_AsGeoJSON(ST_Transform(way,4326)) AS geometry, historic, amenity, tourism, man_made, leisure, shop from planet_osm_polygon as pol where name is not null and building in ('yes') and ST_DWithin(pol.way, (select geometry from finalpoints where osm_id=$1), $2)`, values:[req.query.id, req.query.num]}, function(err, result) {
 
     if(err) {
       return console.error('error running query', err);
