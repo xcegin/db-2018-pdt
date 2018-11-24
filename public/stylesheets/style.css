@@ -5,20 +5,20 @@ body {
 
 
 a {
-  color: #00CBFF;
+  color: greenyellow;
 }
 
-#nadpis {
-  color: lightblue;
+#heading {
+  color: greenyellow;
   text-align: center;
   text-transform: uppercase;
   font-size: 26px;
 }
 
 button, select, input {
-  color: #00CBFF;
-  background-color: white;
-  border: 1px solid lightblue;
+  color: greenyellow;
+  background-color: #222222;
+  border: 1px solid greenyellow;
   font: 20px Impact, Charcoal, sans-serif;
   width: 90%;
   position: relative;
@@ -29,14 +29,14 @@ button, select, input {
   }
   
 button:hover {
-  background-color: #222222;
-  border: 1px solid lightblue;
-  color: lightblue;
+  background-color: greenyellow;
+  border: 1px solid #222222;
+  color: #222222;
 }
 
 fieldset {
-  color: #00CBFF;
-  border: 1px solid lightblue;
+  color: greenyellow;
+  border: 1px solid greenyellow;
   margin: 5%;
 }
 
@@ -54,7 +54,7 @@ input {
   margin-right: 1%;
 }
 
-.vriadku {
+.inline {
   font-size: 15px;
   display: inline-block;
   float: right;

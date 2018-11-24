@@ -43,27 +43,28 @@ block content
   #map
     script.
       L.mapbox.accessToken = 'pk.eyJ1IjoiZXZhaG5pOCIsImEiOiJjaWZ6OHgwbG4wMmc1dG1tN3h4YnpxajlqIn0.ay9PDyLuYmcX1vIUE8QEwg';
-      var map = L.mapbox.map('map').setView([48.653,19.891], 8).addLayer(L.mapbox.tileLayer('mapbox.light'));
+      var map = L.mapbox.map('map').setView([48.653,19.891], 8);
+      L.mapbox.styleLayer('mapbox://styles/cegy/cjovph7ql1h0h2rs0tszmzmj4').addTo(map);
       map.addControl(L.mapbox.geocoderControl('mapbox.places', {
         autocomplete: true
       }));
       map.legendControl.addLegend(document.getElementById('legend').innerHTML);
 
   #menu
-    p#nadpis Slovak Castles
+    p#heading Slovak Castles
     button(type='button', onclick='vratData("/castles", true)') All Castles (Markers only)
     button(type='button', onclick='vratData("/castles-poly", true)') Color castles based on their area
     fieldset
       legend Select castles near cities in km
-      select#closeTowns.vriadku
+      select#closeTowns.inline
       .div  
         input#numberKms(type='number', name='limit', min='0', max='300', value='1')
-        button.vriadku(type='button', onclick='closeTowns()') Show
+        button.inline(type='button', onclick='closeTowns()') Show
     fieldset
       legend Selects castles and parking lots within given meters
       .div  
         input#closeParking(type='number', name='limit', min='0', max='3000', value='5')
-        button.vriadku(type='button', onclick='closeParking()') Show
+        button.inline(type='button', onclick='closeParking()') Show
     fieldset
       legend Show objects of interests from castle on click in meters
       .div  
