@@ -27,17 +27,23 @@ html
             else {myLayer = L.mapbox.featureLayer().setGeoJSON(jsonData);
             clusterGroup = new L.MarkerClusterGroup();}
             if (clean) {
-              myLayer.eachLayer(function(layer) {
-                clusterGroup.addLayer(layer);
-              });
-              clusterGroup.on('click', function (a) {
-                console.log(a.layer.feature);
-                if (a.layer.feature.geometry.type == "Point"){ 
-                  closeInterests(a.layer.feature.osm_id);
-                }
-              });
+                myLayer.eachLayer(function(layer) {
+                  clusterGroup.addLayer(layer);
+                });
+                clusterGroup.on('keypress', function (a) {
+                  console.log(a.layer.feature);
+                  if (a.layer.feature.geometry.type == "Point"){ 
+                    closeRoadNetwork(a.layer.feature.osm_id);  
+                  }
+                });
+                clusterGroup.on('click', function (a) {
+                  console.log(a.layer.feature);
+                  if (a.layer.feature.geometry.type == "Point"){ 
+                    closeInterests(a.layer.feature.osm_id);  
+                  }
+                });
 
-              map.addLayer(clusterGroup);
+                map.addLayer(clusterGroup);
               } else {
               map.addLayer(detailLayer);
               }
@@ -93,6 +99,12 @@ html
           console.log(num);
           
           vratData('/closeTowns?id='+sel+'&num='+num, true);
+      }
+
+      closeRoadNetwork = function(sel) {          
+          console.log(sel);
+          
+          vratData('/roads?id='+sel, false);
       }
       
       selectData();

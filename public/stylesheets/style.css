@@ -107,3 +107,41 @@ input {
 .my-legend a {
   color: #777;
   }
+
+.my-legend-vertical .legend-title-vertical {
+  text-align: center;
+  margin-bottom: 8px;
+  font-size: 90%;
+  color: greenyellow;
+  }
+.my-legend-vertical .legend-scale-vertical ul {
+  margin-left: 50px;
+  padding: 0;
+  float: left;
+  list-style: none;
+  }
+.my-legend-vertical .legend-scale-vertical ul li {
+  display: block;
+  float: left;
+  width: 50px;
+  margin-bottom: 6px;
+  text-align: center;
+  font-size: 80%;
+  list-style: none;
+  color: greenyellow;
+  }
+.my-legend-vertical ul.legend-labels-vertical li span {
+  display: block;
+  float: left;
+  height: 15px;
+  width: 50px;
+  color: greenyellow;
+  }
+.my-legend-vertical .legend-source-vertical {
+  font-size: 70%;
+  color: #999;
+  clear: both;
+  }
+.my-legend-vertical a {
+  color: #777;
+  }

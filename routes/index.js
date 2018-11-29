@@ -262,6 +262,58 @@ router.get('/closeInterests', function(req, res, next) {
   });
 });
 
+/*zobrazenie cestnej siete pre pesich v okruhu od hradu*/
+router.get('/roads', function(req, res, next) {
+  res.writeHead(200, {"Content-Type": "application/json"});
+  
+  var client = new pg.Client(conString);
+  client.connect(function(err) {
+    if(err) {
+      return console.error('could not connect to postgres', err);
+    }
+
+    /*zobrazenie cestnej siete pre pesich v okruhu od hradu*/
+    client.query({text:`with castle_points as (SELECT osm_id,historic,name,way AS geometry FROM planet_osm_point  
+      WHERE historic in ('castle') and name is not null 
+      UNION 
+      SELECT osm_id,historic,name,ST_Centroid(way) AS geometry FROM planet_osm_polygon 
+      WHERE historic in ('castle') and name is not null), multipoints as(
+      Select name, ST_Collect(points.geometry) as geometry FROM castle_points as points GROUP BY name), finalpoints as (
+      select DISTINCT ON (gp.name) gp.name, gp.osm_id, gp.historic, ST_Centroid(points.geometry) AS geometry from castle_points as gp JOIN multipoints points ON gp.name = points.name),
+      buffer as (SELECT ST_Buffer((Select geometry as way from finalpoints points where osm_id=$1),500)),
+      ways as (
+      SELECT * from planet_osm_line where highway in ('footway', 'steps', 'pedestrian', 'footpath')),
+      highways as (
+      select highway, ST_Intersection(way, (select * from buffer)) as way from ways where ST_Intersects(way, (select * from buffer)))
+      select highway, ST_AsGeoJSON(ST_Transform(way,4326)) as geometry, round(ST_Length(way)::numeric, 2) as len from highways`, values:[req.query.id]}, function(err, result) {
+
+    if(err) {
+      return console.error('error running query', err);
+    }
+    client.end();
+    console.dir(req.query);
+
+    result.rows.map(function(row){
+      try {
+        row.geometry = JSON.parse(row.geometry);
+        row.type = "Feature";
+        if(row.highway == "footway" || row.tourism == "footpath"){
+          row.properties = {"title": row.highway, "description": "Length: " + row.len, "stroke": "#c97b1c", "fill": "#c97b1c"}
+        } else if(row.highway == "steps"){
+          row.properties = {"title": row.highway, "description": "Length: " + row.len, "stroke": "#707070", "fill": "#707070"};
+        } else if(row.highway == "pedestrian"){
+          row.properties = {"title": row.highway, "description": "Length: " + row.len, "stroke": "#7a6258", "fill": "#7a6258"};
+        }
+      } catch (e) {
+        row.geometry = null;
+      }
+      return row;
+     });
+    res.end(JSON.stringify(result.rows));
+    });
+  });
+});
+
 /*naplnenie selectu v html*/
 router.get('/selectBigCities', function(req, res, next) {
   res.writeHead(200, {"Content-Type": "application/json"});
