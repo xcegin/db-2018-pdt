@@ -64,13 +64,11 @@ router.get('/castles-poly', function(req, res, next) {
     WHERE historic in ('castle') and name is not null),
     total_areas as(select name,  SUM(area) AS totalarea from castle_areas GROUP BY name),
     grouped_areas as(
-    select distinct on (cas.name) cas.name, cas.geometry, areas.historic, areas.osm_id FROM
-    (select name, (ST_Union(f.geometry)) as geometry FROM castle_areas As f  Where f.name not like '%aštieľ' GROUP BY f.name) cas JOIN castle_areas areas ON areas.name = cas.name),
-    joined_polys as (
-    select gp.name, gp.geometry AS geometry, gp.osm_id, gp.historic ,areas.totalarea from grouped_areas as gp JOIN total_areas areas ON gp.name = areas.name)
-    Select * from (select osm_id, name, historic, ST_AsGeoJSON(ST_Transform(geometry,4326)) as geometry, round(totalarea::numeric, 2) as totalarea  from joined_polys
+    select distinct on (cas.name) cas.name, cas.geometry, areas.historic, areas.osm_id, cas.area as totalarea FROM
+    (select name, (ST_Union(f.geometry)) as geometry, SUM(area) as area FROM castle_areas As f GROUP BY f.name) cas JOIN castle_areas areas ON areas.name = cas.name)
+    Select * from (select osm_id, name, ST_AsGeoJSON(ST_Transform(geometry,4326)) as geometry, round(totalarea::numeric, 2) as totalarea  from grouped_areas
     UNION
-    select osm_id, name, historic, ST_AsGeoJSON(ST_Transform(ST_Centroid(geometry),4326)) as geometry, round(totalarea::numeric, 2) as totalarea from joined_polys) as final_result ORDER BY final_result.totalarea DESC`, function(err, result) {
+    select osm_id, name, ST_AsGeoJSON(ST_Transform(ST_Centroid(geometry),4326)) as geometry, round(totalarea::numeric, 2) as totalarea from grouped_areas) as final_result ORDER BY final_result.totalarea DESC`, function(err, result) {
 
     if(err) {
       return console.error('error running query', err);
