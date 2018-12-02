@@ -71,6 +71,18 @@ Then, for the polygon/multipoint geometry a `ST_Centroid` is used to
 retrieve the centroid of given polygon/multipoints. This is done as join of the UNION and the multipoint/polygon subtable
 to have given centroid for every distinct castle name.
 
+Query:
+```postgresql
+with castle_points as (SELECT osm_id,historic,name,way AS geometry FROM planet_osm_point 
+      WHERE historic in ('castle') and name is not null 
+      UNION 
+      SELECT osm_id,historic,name,ST_Centroid(way) AS geometry FROM planet_osm_polygon 
+      WHERE historic in ('castle') and name is not null), multipoints as(
+      Select name, ST_Collect(points.geometry) as geometry FROM castle_points as points GROUP BY name)
+      select DISTINCT ON (gp.name) gp.name, gp.osm_id, gp.historic, ST_AsGeoJSON(ST_Transform(ST_Centroid(points.geometry),4326)) AS geometry from castle_points as gp 
+      JOIN multipoints points ON gp.name = points.name
+```
+
 #### GET `/castles-poly` - return castles with their area size
 
 First of all, from the polygons using `ST_Area` an area size is calculated and GROUP BY name to 
@@ -80,19 +92,73 @@ Their geometries are preserved using `ST_Union` to create a multipolygon.
 The last thing is the UNION of the table on itself with the exception of the second one returning a centroid
 to represent the castle as a pointer also. The coloring is then handled by the server.
 
+Query:
+```postgresql
+with castle_areas as( SELECT osm_id,historic,name,way AS geometry, ST_Area(way)*POWER(0.3048,2) as area  FROM planet_osm_polygon 
+    WHERE historic in ('castle') and name is not null),
+    total_areas as(select name,  SUM(area) AS totalarea from castle_areas GROUP BY name),
+    grouped_areas as(
+    select distinct on (cas.name) cas.name, cas.geometry, areas.historic, areas.osm_id, cas.area as totalarea FROM
+    (select name, (ST_Union(f.geometry)) as geometry, SUM(area) as area FROM castle_areas As f GROUP BY f.name) cas JOIN castle_areas areas ON areas.name = cas.name)
+    Select * from (select osm_id, name, ST_AsGeoJSON(ST_Transform(geometry,4326)) as geometry, round(totalarea::numeric, 2) as totalarea  from grouped_areas
+    UNION
+    select osm_id, name, ST_AsGeoJSON(ST_Transform(ST_Centroid(geometry),4326)) as geometry, round(totalarea::numeric, 2) as totalarea from grouped_areas) as final_result ORDER BY final_result.totalarea DESC
+```
+
+
 #### GET `/closeParking?num=500` - return all castles with parking lots near them in meters
 In this case we first get a set of points representing castles and then all the polygons which are parking lots. Then,
 using a CROSS JOIN with a WHERE clause for the `ST_DWithin` using the supplied `num` parameter from the query we get all
 the castles and parking lots. To get them both, the query is run twice to extract both the parking lots as well as the castles.
 
+Query:
+```postgresql
+SELECT  pol.osm_id, pol.name, ST_AsGeoJSON(ST_Transform(pol.way,4326)) AS geometry, pol.type as type
+    FROM (SELECT osm_id,amenity as name,way, amenity as type
+    FROM planet_osm_polygon WHERE amenity in ('parking')) as pol CROSS JOIN (SELECT osm_id,name,way, historic as type
+    FROM planet_osm_point WHERE historic in ('castle') and name is not null 
+    UNION SELECT osm_id,name,ST_Centroid(way) AS way, historic as type 
+    FROM planet_osm_polygon WHERE historic in ('castle') and name is not null) as poi WHERE  ST_DWithin(poi.way, pol.way, $1)
+    UNION  
+    SELECT  poi.osm_id, poi.name, ST_AsGeoJSON(ST_Transform(poi.way,4326)) AS geometry, poi.type as type
+    FROM (SELECT osm_id,name,way, historic as type
+    FROM planet_osm_point WHERE historic in ('castle') and name is not null 
+    UNION SELECT osm_id,name,ST_Centroid(way) AS way, historic as type 
+    FROM planet_osm_polygon WHERE historic in ('castle') and name is not null) as poi CROSS JOIN (SELECT osm_id,amenity as name,way, amenity as type
+    FROM planet_osm_polygon WHERE amenity in ('parking')) as pol WHERE ST_DWithin(poi.way, pol.way, $1)
+```
+
 #### GET `/closeTowns?id=123&num=500` - return all castles which are x km away from the given city
 Quite a simple query to return all castles within the proximity of given town in km using the `ST_Distance` and WHERE 
 clause to check if its from the proximity of the town.
+
+Query:
+```postgresql
+Select osm_id, name, ST_AsGeoJSON(ST_Transform(way,4326)) AS geometry, historic 
+      from (SELECT osm_id,name,way, historic
+      FROM planet_osm_point WHERE historic in ('castle') and name is not null 
+      UNION SELECT osm_id,name,ST_Centroid(way) AS way, historic
+      FROM planet_osm_polygon WHERE historic in ('castle') and name is not null) as data
+      where ST_Distance(data.way, (Select way from planet_osm_point points where osm_id=$1)) < $2
+```
+
 
 #### GET `/closeInterests?id=123&num=500` - return all PoI for the given castle within x meters
 In this case points of castles are selected like in `castles` case and all polygons which represent buildings are returned.
 They are then colored by the Server part of the application. `ST_DWithin` is used for distance measurement as we dont know
 where the entrance to the building is.
+
+Query:
+```postgresql
+with castle_points as (SELECT osm_id,historic,name,way AS geometry FROM planet_osm_point 
+      WHERE historic in ('castle') and name is not null 
+      UNION 
+      SELECT osm_id,historic,name,ST_Centroid(way) AS geometry FROM planet_osm_polygon 
+      WHERE historic in ('castle') and name is not null), multipoints as(
+      Select name, ST_Collect(points.geometry) as geometry FROM castle_points as points GROUP BY name), finalpoints as (
+      select DISTINCT ON (gp.name) gp.name, gp.osm_id, gp.historic, ST_Centroid(points.geometry) AS geometry from castle_points as gp JOIN multipoints points ON gp.name = points.name)  
+      select osm_id, name, ST_AsGeoJSON(ST_Transform(way,4326)) AS geometry, historic, amenity, tourism, man_made, leisure, shop from planet_osm_polygon as pol where name is not null and building in ('yes') and ST_DWithin(pol.way, (select geometry from finalpoints where osm_id=$1), $2)
+```
 
 #### GET `/roads?id=123` - return pedestrian road network in proximity of the castle
 First the castle points are selected as shown above. Then, all lines are selected, which are of types 'footway', 'steps', 'pedestrian' or 'footpath'
@@ -100,4 +166,21 @@ only if they are atleast partially inside a circle created by the `ST_Buffer` fu
 `ST_Intersection` is used to get only that part of the road, which is actually intersecting the circle/buffer.
 Then the geometry is transformed and length of the line is also calculated using `ST_Length`. The length is then shown in the 
 description of the road. The road network is then colored via server part of the application.
+
+Query:
+```postgresql
+with castle_points as (SELECT osm_id,historic,name,way AS geometry FROM planet_osm_point  
+      WHERE historic in ('castle') and name is not null 
+      UNION 
+      SELECT osm_id,historic,name,ST_Centroid(way) AS geometry FROM planet_osm_polygon 
+      WHERE historic in ('castle') and name is not null), multipoints as(
+      Select name, ST_Collect(points.geometry) as geometry FROM castle_points as points GROUP BY name), finalpoints as (
+      select DISTINCT ON (gp.name) gp.name, gp.osm_id, gp.historic, ST_Centroid(points.geometry) AS geometry from castle_points as gp JOIN multipoints points ON gp.name = points.name),
+      buffer as (SELECT ST_Buffer((Select geometry as way from finalpoints points where osm_id=$1),500)),
+      ways as (
+      SELECT * from planet_osm_line where highway in ('footway', 'steps', 'pedestrian', 'footpath')),
+      highways as (
+      select highway, ST_Intersection(way, (select * from buffer)) as way from ways where ST_Intersects(way, (select * from buffer)))
+      select highway, ST_AsGeoJSON(ST_Transform(way,4326)) as geometry, round(ST_Length(way)::numeric, 2) as len from highways
+```
 
