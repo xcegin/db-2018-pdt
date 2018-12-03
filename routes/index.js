@@ -118,19 +118,21 @@ router.get('/closeParking', function(req, res, next) {
       return console.error('could not connect to postgres', err);
     }
     /*hrady a parkoviska do danych metrov*/
-    client.query({text:`SELECT  pol.osm_id, pol.name, ST_AsGeoJSON(ST_Transform(pol.way,4326)) AS geometry, pol.type as type
-    FROM (SELECT osm_id,amenity as name,way, amenity as type
-    FROM planet_osm_polygon WHERE amenity in ('parking')) as pol CROSS JOIN (SELECT osm_id,name,way, historic as type
-    FROM planet_osm_point WHERE historic in ('castle') and name is not null 
-    UNION SELECT osm_id,name,ST_Centroid(way) AS way, historic as type 
-    FROM planet_osm_polygon WHERE historic in ('castle') and name is not null) as poi WHERE  ST_DWithin(poi.way, pol.way, $1)
-    UNION  
-    SELECT  poi.osm_id, poi.name, ST_AsGeoJSON(ST_Transform(poi.way,4326)) AS geometry, poi.type as type
-    FROM (SELECT osm_id,name,way, historic as type
-    FROM planet_osm_point WHERE historic in ('castle') and name is not null 
-    UNION SELECT osm_id,name,ST_Centroid(way) AS way, historic as type 
-    FROM planet_osm_polygon WHERE historic in ('castle') and name is not null) as poi CROSS JOIN (SELECT osm_id,amenity as name,way, amenity as type
-    FROM planet_osm_polygon WHERE amenity in ('parking')) as pol WHERE ST_DWithin(poi.way, pol.way, $1)`, values:[req.query.num]}, function(err, result) {
+    client.query({text:`with park_poi as (
+      SELECT  pol.osm_id as pol_osm_id, pol.name as pol_name, ST_AsGeoJSON(ST_Transform(pol.way,4326)) AS geometry_pol, pol.type as pol_type,
+      poi.osm_id as poi_osm_id, poi.name as poi_name, ST_AsGeoJSON(ST_Transform(poi.way,4326)) AS geometry_poi, poi.type as poi_type
+        FROM (SELECT osm_id,amenity as name,way, amenity as type
+        FROM planet_osm_polygon WHERE amenity in ('parking')) as pol 
+      CROSS JOIN (SELECT osm_id,name,way, historic as type
+        FROM planet_osm_point WHERE historic in ('castle') and name is not null 
+        UNION SELECT osm_id,name,ST_Centroid(way) AS way, historic as type 
+        FROM planet_osm_polygon WHERE historic in ('castle') and name is not null) as poi WHERE ST_DWithin(poi.way, pol.way, $1)
+    )
+    SELECT DISTINCT ON (osm_id) * FROM (SELECT pol_osm_id as osm_id, pol_name as name, geometry_pol AS geometry, pol_type as type
+        FROM park_poi
+        UNION  
+        SELECT  poi_osm_id as osm_id, poi_name as name, geometry_poi AS geometry, poi_type as type
+        FROM park_poi) as park_poi;`, values:[req.query.num]}, function(err, result) {
 
     if(err) {
       return console.error('error running query', err);

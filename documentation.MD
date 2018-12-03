@@ -109,23 +109,25 @@ with castle_areas as( SELECT osm_id,historic,name,way AS geometry, ST_Area(way)*
 #### GET `/closeParking?num=500` - return all castles with parking lots near them in meters
 In this case we first get a set of points representing castles and then all the polygons which are parking lots. Then,
 using a CROSS JOIN with a WHERE clause for the `ST_DWithin` using the supplied `num` parameter from the query we get all
-the castles and parking lots. To get them both, the query is run twice to extract both the parking lots as well as the castles.
+the castles and parking lots. To get them both, we do a union splitting the columns and joining them together with distinct on the value of the id.
 
 Query:
 ```postgresql
-SELECT  pol.osm_id, pol.name, ST_AsGeoJSON(ST_Transform(pol.way,4326)) AS geometry, pol.type as type
-    FROM (SELECT osm_id,amenity as name,way, amenity as type
-    FROM planet_osm_polygon WHERE amenity in ('parking')) as pol CROSS JOIN (SELECT osm_id,name,way, historic as type
-    FROM planet_osm_point WHERE historic in ('castle') and name is not null 
-    UNION SELECT osm_id,name,ST_Centroid(way) AS way, historic as type 
-    FROM planet_osm_polygon WHERE historic in ('castle') and name is not null) as poi WHERE  ST_DWithin(poi.way, pol.way, $1)
-    UNION  
-    SELECT  poi.osm_id, poi.name, ST_AsGeoJSON(ST_Transform(poi.way,4326)) AS geometry, poi.type as type
-    FROM (SELECT osm_id,name,way, historic as type
-    FROM planet_osm_point WHERE historic in ('castle') and name is not null 
-    UNION SELECT osm_id,name,ST_Centroid(way) AS way, historic as type 
-    FROM planet_osm_polygon WHERE historic in ('castle') and name is not null) as poi CROSS JOIN (SELECT osm_id,amenity as name,way, amenity as type
-    FROM planet_osm_polygon WHERE amenity in ('parking')) as pol WHERE ST_DWithin(poi.way, pol.way, $1)
+with park_poi as (
+      SELECT  pol.osm_id as pol_osm_id, pol.name as pol_name, ST_AsGeoJSON(ST_Transform(pol.way,4326)) AS geometry_pol, pol.type as pol_type,
+      poi.osm_id as poi_osm_id, poi.name as poi_name, ST_AsGeoJSON(ST_Transform(poi.way,4326)) AS geometry_poi, poi.type as poi_type
+        FROM (SELECT osm_id,amenity as name,way, amenity as type
+        FROM planet_osm_polygon WHERE amenity in ('parking')) as pol 
+      CROSS JOIN (SELECT osm_id,name,way, historic as type
+        FROM planet_osm_point WHERE historic in ('castle') and name is not null 
+        UNION SELECT osm_id,name,ST_Centroid(way) AS way, historic as type 
+        FROM planet_osm_polygon WHERE historic in ('castle') and name is not null) as poi WHERE ST_DWithin(poi.way, pol.way, $1)
+    )
+    SELECT DISTINCT ON (osm_id) * FROM (SELECT pol_osm_id as osm_id, pol_name as name, geometry_pol AS geometry, pol_type as type
+        FROM park_poi
+        UNION  
+        SELECT  poi_osm_id as osm_id, poi_name as name, geometry_poi AS geometry, poi_type as type
+        FROM park_poi) as park_poi;
 ```
 
 #### GET `/closeTowns?id=123&num=500` - return all castles which are x km away from the given city
